@@ -1,119 +1,130 @@
-//  Nilheim Mechatronics Simplified Eye Mechanism Code
-//  Make sure you have the Adafruit servo driver library installed >>>>> https://github.com/adafruit/Adafruit-PWM-Servo-Driver-Library
-//  X-axis joystick pin: A1
-//  Y-axis joystick pin: A0
-//  Trim potentiometer pin: A2
-//  Button pin: 2
 
- 
+/*
+* Original sourse: https://github.com/adafruit/Adafruit-PWM-Servo-Driver-Library
+* This is the Arduino code PAC6985 16 channel servo controller
+* watch the video for details and demo http://youtu.be/y8X9X10Tn1k
+*  *
+
+* Watch video for this code:
+*
+* Related Videos
+V5 video of PCA9685 32 Servo with ESP32 with WiFi https://youtu.be/bvqfv-FrrLM
+V4 video of PCA9685 32 Servo with ESP32 (no WiFi): https://youtu.be/JFdXB8Za5Os
+V3 video of PCA9685 how to control 32 Servo motors https://youtu.be/6P21wG7N6t4
+V2 Video of PCA9685 3 different ways to control Servo motors: https://youtu.be/bal2STaoQ1M
+V1 Video introduction to PCA9685 to control 16 Servo  https://youtu.be/y8X9X10Tn1k
+
+* Written by Ahmad Shamshiri for Robojax Video channel www.Robojax.com
+* Date: Dec 16, 2017, in Ajax, Ontario, Canada
+* Permission granted to share this code given that this
+* note is kept with the code.
+* Disclaimer: this code is "AS IS" and for educational purpose only.
+* this code has been downloaded from http://robojax.com/learn/arduino/
+*
+*/
+/*************************************************** 
+  This is an example for our Adafruit 16-channel PWM & Servo driver
+  Servo test - this will drive 16 servos, one after the other
+
+  Pick one up today in the adafruit shop!
+  ------> http://www.adafruit.com/products/815
+
+  These displays use I2C to communicate, 2 pins are required to  
+  interface. For Arduino UNOs, thats SCL -> Analog 5, SDA -> Analog 4
+
+  Adafruit invests time and resources providing this open source code, 
+  please support Adafruit and open-source hardware by purchasing 
+  products from Adafruit!
+
+  Written by Limor Fried/Ladyada for Adafruit Industries.  
+  BSD license, all text above must be included in any redistribution
+ ****************************************************/
+
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
+#include "Dictionary.h"
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+class Servo
+{
+public:
+    explicit Servo(const String& n, uint16_t minAng, uint16_t maxAng) : name(n), minAngle(minAng), maxAngle(maxAng)
+    {};
+private:
+    String name;
+    uint16_t minAngle {0};
+    uint16_t maxAngle {180};
+};
 
-#define SERVOMIN  140 // this is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  520 // this is the 'maximum' pulse length count (out of 4096)
+class ServoDriver
+{
 
-// our servo # counter
-uint8_t servonum = 0;
+public:
+    Adafruit_PWMServoDriver driver;
 
-int xval;
-int yval;
+    void setup()
+    {
+        driver.begin();
+        driver.setPWMFreq(this->servoFrequency);
+    }
 
-int lexpulse;
-int rexpulse;
+    void setServoFrequency(uint8_t frequency)
+    {
+        this->servoFrequency = frequency;
+    }
 
-int leypulse;
-int reypulse;
+    void addServo(uint8_t servoIndex, Servo servo)
+    {
+        servoMap.set(servoIndex, servo);
+    }
 
-int uplidpulse;
-int lolidpulse;
-int altuplidpulse;
-int altlolidpulse;
+    void moveServo(const String& servoName, uint16_t angle)
+    {
 
-int trimval;
+    }
 
-const int analogInPin = A0;
-int sensorValue = 0;
-int outputValue = 0;
-int switchval = 0;
+private:
+    Dictionary<uint8_t , Servo> servoMap;
+    uint8_t servoFrequency {60};
+    uint16_t minPulseLength {150};
+    uint16_t maxPulseLength {600};
 
-void setup() {
-  Serial.begin(9600);
-  Serial.println("8 channel Servo test!");
-  pinMode(analogInPin, INPUT);
-  pinMode(2, INPUT);
- 
-  pwm.begin();
-  
-  pwm.setPWMFreq(60);  // Analog servos run at ~60 Hz updates
 
-  delay(10);
+    long angleToPulse(uint16_t angle, uint16_t minAng, uint16_t maxAng)
+    {
+        if (angle > maxAng || angle < minAng) {
+            return -1;
+        }
+        return map(angle, minAng, maxAng, minPulseLength, maxPulseLength);
+    };
+
+};
+
+ServoDriver servoDriver;
+
+void setup()
+{
+    Serial.begin(9600);
+    Serial.println("16 channel Servo test!");
+
+    servoDriver.setup();
+
+    //yield();
 }
 
-// you can use this function if you'd like to set the pulse length in seconds
-// e.g. setServoPulse(0, 0.001) is a ~1 millisecond pulse width. its not precise!
-void setServoPulse(uint8_t n, double pulse) {
-  double pulselength;
-  
-  pulselength = 1000000;   // 1,000,000 us per second
-  pulselength /= 60;   // 60 Hz
-  Serial.print(pulselength); Serial.println(" us per period"); 
-  pulselength /= 4096;  // 12 bits of resolution
-  Serial.print(pulselength); Serial.println(" us per bit"); 
-  pulse *= 1000000;  // convert to us
-  pulse /= pulselength;
-  Serial.println(pulse);
-
-}
-
-void loop() {
-
-  xval = analogRead(A1);
-    lexpulse = map(xval, 0,1023, 220, 440);
-    rexpulse = lexpulse;
-
-    switchval = digitalRead(2);
-    
-    
-  yval = analogRead(A0);
-    leypulse = map(yval, 0,1023, 250, 500);
-    reypulse = map(yval, 0,1023, 400, 280);
-
-  trimval = analogRead(A2);
-    trimval=map(trimval, 320, 580, -40, 40);
-     uplidpulse = map(yval, 0, 1023, 400, 280);
-        uplidpulse -= (trimval-40);
-          uplidpulse = constrain(uplidpulse, 280, 400);
-     altuplidpulse = 680-uplidpulse;
-
-     lolidpulse = map(yval, 0, 1023, 410, 280);
-       lolidpulse += (trimval/2);
-         lolidpulse = constrain(lolidpulse, 280, 400);      
-     altlolidpulse = 680-lolidpulse;
- 
-    
-      pwm.setPWM(0, 0, lexpulse);
-      pwm.setPWM(1, 0, leypulse);
+// the code inside loop() has been updated by Robojax
+void loop()
+{
 
 
-      if (switchval == HIGH) {
-      pwm.setPWM(2, 0, 400);
-      pwm.setPWM(3, 0, 240);
-      pwm.setPWM(4, 0, 240);
-      pwm.setPWM(5, 0, 400);
-      }
-      else if (switchval == LOW) {
-      pwm.setPWM(2, 0, uplidpulse);
-      pwm.setPWM(3, 0, lolidpulse);
-      pwm.setPWM(4, 0, altuplidpulse);
-      pwm.setPWM(5, 0, altlolidpulse);
-      }
+    servoDriver.addServo(0, Servo("xaxis", 0,180));
+    servoDriver.addServo(0, Servo("yaxis", 0,180));
 
+    servoDriver.moveServo()
+    for (int angle = 0; angle < 181; angle += 20) {
+        delay(500);
+        sd.setPWM(0, 0, angleToPulse(angle));
+    }
 
-
-          Serial.println(trimval);
-      
-  delay(5);
+    delay(1000);
 
 }
