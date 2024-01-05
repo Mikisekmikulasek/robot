@@ -13,13 +13,13 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define LID_left_up 4     // levy horni vicko 90-15
 #define LID_left_down 5   // levy dolni vicko 90-110
 
-#define EYES_HORIZONTAL_LEFT_MAX 0
-#define EYES_HORIZONTAL_RIGHT_MAX 80
-#define EYES_HORIZONTAL_CENTER 40
+#define EYES_HORIZONTAL_LEFT_MAX 80 // validated
+#define EYES_HORIZONTAL_RIGHT_MAX 0 // validated: from eyes point of view
+#define EYES_HORIZONTAL_CENTER 40   // validated: from eyes point of view
 
-#define EYES_VERTICAL_UP_MAX 70
-#define EYES_VERTICAL_DOWN_MAX 110
-#define EYES_VERTICAL_CENTER 90
+#define EYES_VERTICAL_UP_MAX 110 // validated
+#define EYES_VERTICAL_DOWN_MAX 70 // validated
+#define EYES_VERTICAL_CENTER 90 // validated
 
 #define RIGHT_UP_LID_MAX 165
 #define RIGHT_UP_LID_MIN 90
@@ -41,34 +41,11 @@ uint16_t current_left_up_lid_pos{0};
 uint16_t current_left_down_lid_pos{0};
 
 #define COSMETIC_DELAY 400
-#define DELAY 15
+#define SERVO_DELAY 15
 
 long angleToPulse(uint16_t angle)
 {
   return map(angle, 0, 180, SERVOMIN, SERVOMAX);
-}
-
-void setup()
-{
-  Serial.begin(9600);
-  pwm.begin();
-  pwm.setPWMFreq(60);
-
-  delay(COSMETIC_DELAY);
-  centerBothEyes();
-  delay(COSMETIC_DELAY);
-  openAllLids();
-
-  delay(COSMETIC_DELAY);
-  rightBothEyes(EYES_HORIZONTAL_RIGHT_MAX, 1);
-  delay(COSMETIC_DELAY);
-  leftBothEyes(EYES_HORIZONTAL_LEFT_MAX, 1);
-  delay(COSMETIC_DELAY);
-  rightBothEyes(EYES_HORIZONTAL_CENTER, 20);
-
-  delay(COSMETIC_DELAY);
-  rightLidsBlink(RIGHT_LIDS_POINT_OF_TOUCH);
-  // yield();
 }
 
 void move(uint8_t part, uint16_t pos)
@@ -76,7 +53,7 @@ void move(uint8_t part, uint16_t pos)
   pwm.setPWM(part, 0, angleToPulse(pos));
 }
 
-void centerBothEyes()
+void forceCenterBothEyes()
 {
   move(EYES_horizontal, EYES_HORIZONTAL_CENTER);
   move(EYES_vertical, EYES_VERTICAL_CENTER);
@@ -97,35 +74,55 @@ void openAllLids()
   current_left_down_lid_pos = LEFT_DOWN_LID_MIN;
 }
 
-void rightBothEyes(uint16_t max_pos, uint16_t step_size)
+void moveBothEyesHorizontal(uint16_t target_pos, uint16_t step_size)
 {
-  if (max_pos < 0 || step_size < 0)
+  if (target_pos < 0 || step_size < 0)
   {
     return;
   }
 
-  for (; current_horizontal_eyes_pos < max_pos; current_horizontal_eyes_pos += step_size)
+  if (current_horizontal_eyes_pos > target_pos)
+  {
+    for (; current_horizontal_eyes_pos > target_pos; current_horizontal_eyes_pos -= step_size)
+    {
+      move(EYES_horizontal, current_horizontal_eyes_pos);
+      delay(SERVO_DELAY);
+    }
+    return;
+  }
+
+  for (; current_horizontal_eyes_pos < target_pos; current_horizontal_eyes_pos += step_size)
   {
     move(EYES_horizontal, current_horizontal_eyes_pos);
-    delay(DELAY);
+    delay(SERVO_DELAY);
   }
 }
 
-void leftBothEyes(uint16_t max_pos, uint16_t step_size)
-{
-  if (max_pos < 0 || step_size < 0)
+void moveBothEyesVertical(uint16_t target_pos, uint16_t step_size) {
+
+if (target_pos < 0 || step_size < 0)
   {
     return;
   }
 
-  for (; current_horizontal_eyes_pos > max_pos; current_horizontal_eyes_pos -= step_size)
+  if (current_vertical_eyes_pos > target_pos)
   {
-    move(EYES_horizontal, current_horizontal_eyes_pos);
-    delay(DELAY);
+    for (; current_vertical_eyes_pos > target_pos; current_vertical_eyes_pos -= step_size)
+    {
+      move(EYES_vertical, current_vertical_eyes_pos);
+      delay(SERVO_DELAY);
+    }
+    return;
+  }
+
+  for (; current_vertical_eyes_pos < target_pos; current_vertical_eyes_pos += step_size)
+  {
+    move(EYES_vertical, current_vertical_eyes_pos);
+    delay(SERVO_DELAY);
   }
 }
 
-void rightLidsBlink(uint16_t max_pos)
+void rightLidsBlink(uint16_t target_pos)
 {
   for (; current_right_up_lid_pos <= RIGHT_UP_LID_MAX; current_right_up_lid_pos += 3)
   {
@@ -138,8 +135,29 @@ void rightLidsBlink(uint16_t max_pos)
   }
 }
 
+void setup()
+
+{
+  Serial.begin(9600);
+  pwm.begin();
+  pwm.setPWMFreq(60);
+
+  delay(COSMETIC_DELAY);
+
+  forceCenterBothEyes();
+
+  
+}
+
 void loop()
 {
+  moveBothEyesHorizontal(EYES_HORIZONTAL_CENTER,1);
+  moveBothEyesHorizontal(EYES_HORIZONTAL_LEFT_MAX,1);
+  moveBothEyesHorizontal(EYES_HORIZONTAL_RIGHT_MAX,1);
+  moveBothEyesVertical(EYES_VERTICAL_UP_MAX, 1);
+  moveBothEyesVertical(EYES_VERTICAL_CENTER, 1);
+  moveBothEyesVertical(EYES_VERTICAL_DOWN_MAX, 1);
+  moveBothEyesVertical(EYES_VERTICAL_CENTER, 1);
 }
 
 /*
